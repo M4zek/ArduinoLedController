@@ -7,7 +7,7 @@ SoftwareSerial BTSerial(1,0);
 #define LED_TYPE    WS2811
 #define COLOR_ORDER GRB
 #define FRAMES_PER_SECOND  120
-#define NUM_LEDS    10
+#define NUM_LEDS    30
 #define DATA_PIN    12
 CRGB leds[NUM_LEDS];
 
@@ -15,11 +15,26 @@ CRGB leds[NUM_LEDS];
 byte BRIGHTNESS = 0;
 byte RESET_PIN = 5;
 
-// Variable storing the current pattern
-uint8_t currentPattern = 0;
+typedef enum {
+  TURN_ON,
+  TURN_OFF,
+  RESSET_ARDUINO,
+  SET_BRIGHTNESS,
+  ONE_COLOR,
+  RAINBOW,
+  RAINBOW_GLITTER,
+  CONFETTI,
+  KNIGHRIDER,
+  KNIGHRIDER_COLORED,
+  BPM,
+  JUGGLE,
+  FADED,
+  BREATHING,
+} Pattern;
 
-// Variable describing the state of the led
-boolean isOn = false;
+
+// Variable storing the current pattern
+Pattern currentPattern = TURN_OFF;
 
 // Current led color for selected patterns
 long currentColor = -65536;
@@ -27,58 +42,81 @@ long currentColor = -65536;
 
 // INIT METHOD
 void setup(){
+    turnOffLeds();
+
     BTSerial.begin(9600);
     initStartingData();
 }
 
-
-
 // ==== NUMBER DESCRIPTIONS ====
-// 0 - brightness
-// 1 - one color
-// 2 - rainbow
-// 3 - rainbow with glitter
-// 4 - confetti
-// 5 - knightrider
-// 6 - colored knight rider
-// 7 - bpm
-// 8 - juggle
-// 9 - faded
-// 10 - breathing
+// 0 - turn on leds
+// 1 - turn off leds
+// 2 - reset Arduino
+// 3 - brightness
+// 4 - one color
+// 5 - rainbow
+// 6 - rainbow with glitter
+// 7 - confetti
+// 8 - knightrider
+// 9 - colored knight rider
+// 10 - bpm
+// 11 - juggle
+// 12 - faded
+// 13 - breathing
 // =============================
 
 
 // MAIN LOOP
 void loop(){
-
     if(BTSerial.available()){
       String incomingData = readStringFromSerial();
       switch(strToLong(incomingData)){
-        case 0:
+        
+        case 0: // Turn on
+          turnOnLeds(currentColor);
+          break;
 
-        break;
+        case 1: // Turn off
+          turnOffLeds();
+          break;
+
+        case 2: // Reset
+          resetArduino();
+          break;
       }
     }
-
 }
 
 
 /////////////// LED METHODS ///////////////
+
 void turnOnLeds(long color){
-  color  *= -1;
-  for (int i = 0 ; i < NUM_LEDS ; i++) {
-    leds[i].setRGB(getRed(color), getGreen(color), getBlue(color));
-  }
+  if(currentPattern == TURN_OFF){
+    color  *= -1;
+    for (int i = 0 ; i < NUM_LEDS ; i++) {
+      leds[i].setRGB(getRed(color), getGreen(color), getBlue(color));
+    }
 
-  for (int i = 1 ; i <= 255 ; i++) {
-    FastLED.setBrightness(i);
-    FastLED.show();
-    delay(10);
+    for (int i = 1 ; i <= BRIGHTNESS ; i++) {
+      FastLED.setBrightness(i);
+      FastLED.show();
+      delay(10);
+    }
+    currentPattern = ONE_COLOR;
+    write("Leds on!");
   }
-
-  isOn = true;
-  currentPattern = 1;
 }
+
+void turnOffLeds(){
+    for(int i  = 0; i < NUM_LEDS; i++){
+      leds[i] = CRGB::Black;
+      FastLED.show();
+      delay(10);
+    }
+    currentPattern = TURN_OFF;
+    write("Leds off!");
+}
+
 
 /////////////// MY METHODS ///////////////
 
@@ -100,17 +138,18 @@ void initStartingData(){
     delay(100);
 
     RESET_PIN = (byte) strToLong(readStringFromSerial());
+    initResetPin();
+
+    delay(100);
+    BRIGHTNESS = (byte) strToLong(readStringFromSerial());
+
+    delay(100);
+    currentColor = strToLong(readStringFromSerial());
 
     delay(100);
     String turnOnLed = readStringFromSerial();
 
     if(turnOnLed == "true"){
-        delay(100);
-        BRIGHTNESS = (byte) strToLong(readStringFromSerial());
-
-        delay(100);
-        currentColor = strToLong(readStringFromSerial());
-
         turnOnLeds(currentColor);
     }
 }
