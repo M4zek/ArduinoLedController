@@ -9,11 +9,13 @@ SoftwareSerial BTSerial(1,0);
 #define FRAMES_PER_SECOND  120
 #define NUM_LEDS    30
 #define DATA_PIN    12
+#define FRAMES_PER_SECOND  120
 CRGB leds[NUM_LEDS];
 
 
 byte BRIGHTNESS = 0;
 byte RESET_PIN = 5;
+uint8_t gHue = 0;
 
 typedef enum {
   TURN_ON,
@@ -83,13 +85,21 @@ void loop(){
         case 2: // Reset
           resetArduino();
           break;
+
+        case 3: // Brightness
+          setBrightness();
+          break;
+
+        default:
+          write("Unknown operation!");
+        break;
+
       }
     }
 }
 
 
-/////////////// LED METHODS ///////////////
-
+/////////////// LED METHODS (PATTERNS) ///////////////
 void turnOnLeds(long color){
   if(currentPattern == TURN_OFF){
     color  *= -1;
@@ -111,13 +121,188 @@ void turnOffLeds(){
     for(int i  = 0; i < NUM_LEDS; i++){
       leds[i] = CRGB::Black;
       FastLED.show();
-      delay(10);
+      delay(50);
     }
     currentPattern = TURN_OFF;
     write("Leds off!");
 }
 
+void oneColor(long color) {
+  int r = getRed(color);
+  int g = getGreen(color);
+  int b = getBlue(color);
+  for (int i = 0; i <= NUM_LEDS / 2; i++) {
+    leds[i].setRGB(r, g, b);
+    leds[NUM_LEDS - i].setRGB(r, g, b);
+    FastLED.show();
+    delay(100);
+  }
+  currentPattern = ONE_COLOR;
+  currentColor = color;
+  write("One color was set!");
+}
 
+void setBrightness(){
+  BRIGHTNESS = (byte) strToLong(readStringFromSerial());
+  if(FastLED.getBrightness() > BRIGHTNESS){
+      for(int i = FastLED.getBrightness(); i <= BRIGHTNESS; i--){
+        FastLED.setBrightness(i);
+        delay(10);
+      }
+  } else {
+      for(int i = FastLED.getBrightness(); i >= BRIGHTNESS; i++){
+        FastLED.setBrightness(i);
+        delay(10);
+      }
+  }
+  write("The brightness has been set!");
+  startPattern();
+}
+
+void rainbow() {
+  BTSerial.println("Rainbow on!");
+  currentPattern = RAINBOW;
+  while (!BTSerial.available()) {
+    showAndDelay();
+    fill_rainbow( leds, NUM_LEDS, gHue, 10);
+  }
+}
+
+void rainbowWithGlitter() {
+  BTSerial.println("Rainbow with Glitter on!");
+  currentPattern = RAINBOW_GLITTER;
+  while (!BTSerial.available()) {
+    showAndDelay();
+    fill_rainbow( leds, NUM_LEDS, gHue, 7);
+    addGlitter(80);
+  }
+}
+
+void confetti() {
+  BTSerial.println("Confetti on!");
+  currentPattern = CONFETTI;
+  while (!BTSerial.available()) {
+    showAndDelay();
+    fadeToBlackBy( leds, NUM_LEDS, 10);
+    int pos = random16(NUM_LEDS);
+    leds[pos] += CHSV( gHue + random8(64), 200, 255);
+  }
+}
+
+void coloredKnightRider() {
+  BTSerial.println("Colored KnightRider on!");
+  currentPattern = KNIGHRIDER_COLORED;
+  while (!BTSerial.available()) {
+    showAndDelay();
+    fadeToBlackBy( leds, NUM_LEDS, 20);
+    int pos = beatsin16( 13, 0, NUM_LEDS - 1 );
+    leds[pos] += CHSV(gHue, 255, 192);
+  }
+}
+
+void knightRider() {
+  BTSerial.println("KnightRider on!");
+  currentPattern = KNIGHRIDER;
+  while (!BTSerial.available()) {
+    showAndDelay();
+    fadeToBlackBy( leds, NUM_LEDS, 20);
+    int pos = beatsin16( 13, 0, NUM_LEDS - 1 );
+    leds[pos] += CHSV(255, 255, 192);
+  }
+}
+
+void bpm() {
+  BTSerial.println("BPM on!");
+  currentPattern = BPM;
+  while (!BTSerial.available()) {
+    showAndDelay();
+    uint8_t BeatsPerMinute = 62;
+    CRGBPalette16 palette = PartyColors_p;
+    uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
+    for ( int i = 0; i < NUM_LEDS; i++) { 
+      leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
+    }
+  }
+}
+
+void juggle() {
+  BTSerial.println("Juggle on!");
+  currentPattern = JUGGLE;
+  while (!BTSerial.available()) {
+    showAndDelay();
+    fadeToBlackBy( leds, NUM_LEDS, 20);
+    uint8_t dothue = 0;
+    for ( int i = 0; i < 8; i++) {
+      leds[beatsin16( i + 7, 0, NUM_LEDS - 1 )] |= CHSV(dothue, 200, 255);
+      dothue += 32;
+    }
+  }
+}
+
+void faded() {
+  BTSerial.println("Faded on!");
+  currentPattern = FADED;
+  while (!BTSerial.available()) {
+    static uint8_t hue = 0;
+    for (int i = 0; i < NUM_LEDS; i++) {
+      leds[i] = CHSV(hue++, 255, 255);
+      FastLED.show();
+      fadeall();
+      delay(20);
+    }
+
+    for (int i = (NUM_LEDS) - 1; i >= 0; i--) {
+      leds[i] = CHSV(hue++, 255, 255);
+      FastLED.show();
+      fadeall();
+      delay(20);
+    }
+  }
+}
+
+void addGlitter( fract8 chanceOfGlitter)
+{
+  if ( random8() < chanceOfGlitter) {
+    leds[ random16(NUM_LEDS) ] += CRGB::White;
+  }
+}
+
+void fadeall() {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i].nscale8(250);
+  }
+}
+
+void breathing(long color) {
+  unsigned int r = getRed(color);
+  unsigned int g = getGreen(color);
+  unsigned int b = getBlue(color);
+  
+  BTSerial.println("Breathing on!");
+  currentPattern = BREATHING;
+
+  for (int i = 0; i <= NUM_LEDS / 2; i++) {
+    leds[i].setRGB(r, g, b);
+    leds[NUM_LEDS - i].setRGB(r, g, b);
+    FastLED.show();
+    delay(50);
+  }
+
+  while (!Serial.available()) {
+    for (int i = FastLED.getBrightness(); i < 256; i++) {
+      FastLED.setBrightness(i);
+      FastLED.show();
+      if (BTSerial.available()) break;
+      delay(10);
+    }
+    for (int i = FastLED.getBrightness(); i >= 0; i--) {
+      FastLED.setBrightness(i);
+      FastLED.show();
+      if (BTSerial.available()) break;
+      delay(10);
+    }
+  }
+}
 /////////////// MY METHODS ///////////////
 
 // Methods read data from Serial when some information iscomming
@@ -128,7 +313,6 @@ String readStringFromSerial(){
     }
     return data;
 }
-
 
 // Read and set data
 void initStartingData(){
@@ -173,7 +357,60 @@ void write(String txt){
     BTSerial.println(txt);
 }
 
-// ================================= //
+
+void showAndDelay() {
+  FastLED.show();
+  FastLED.delay(1000 / FRAMES_PER_SECOND);
+  EVERY_N_MILLISECONDS( 20 ) {
+    gHue++;
+  }
+}
+//
+
+void startPattern(){
+ switch(currentPattern){
+    case ONE_COLOR:
+      oneColor(currentColor);
+      break;
+
+    case RAINBOW:
+      rainbow();
+      break;
+
+    case RAINBOW_GLITTER:
+      rainbowWithGlitter();
+      break;
+
+    case CONFETTI:
+      confetti();
+      break;
+
+    case KNIGHRIDER:
+      knightRider();
+      break;
+
+    case KNIGHRIDER_COLORED:
+      coloredKnightRider();
+      break;
+
+    case BPM:
+      bpm();
+      break;
+
+    case JUGGLE:
+      juggle();
+      break;
+
+    case FADED:
+      faded();
+      break; 
+
+    case BREATHING:
+      
+      break;
+ }
+}
+// =========================================== //
 
 
 /////////////// CONVERT'S METHODS ///////////////
