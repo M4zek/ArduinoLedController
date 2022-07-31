@@ -44,6 +44,7 @@ long currentColor = -65536;
 
 // INIT METHOD
 void setup(){
+    FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
     turnOffLeds();
 
     BTSerial.begin(9600);
@@ -55,15 +56,15 @@ void setup(){
 // 1 - turn off leds
 // 2 - reset Arduino
 // 3 - brightness
-// 4 - one color
-// 5 - rainbow
-// 6 - rainbow with glitter
-// 7 - confetti
-// 8 - knightrider
-// 9 - colored knight rider
-// 10 - bpm
-// 11 - juggle
-// 12 - faded
+// 4 - one color !
+// 5 - rainbow !
+// 6 - rainbow with glitter !
+// 7 - confetti !
+// 8 - knightrider !
+// 9 - colored knight rider !
+// 10 - bpm !
+// 11 - juggle !
+// 12 - faded 
 // 13 - breathing
 // =============================
 
@@ -90,10 +91,59 @@ void loop(){
           setBrightness();
           break;
 
+        case 4: // One color
+          write("Running a pattern ONE COLOR");
+          oneColor(readColorFromDevice());
+          break;
+
+        case 5: // Rainbow
+          write("Running a pattern RAINBOW");
+          rainbow();
+          break;
+
+        case 6: // Rainbow with glitter
+          write("Running a pattern RAINBOW WITH GLITTER");
+          rainbowWithGlitter();
+          break;
+
+        case 7: // Confetti
+          write("Running a pattern CONFETTI");
+          confetti();
+          break;
+
+        case 8: // Knightrider
+          write("Running a pattern KNIGHTRIDER");
+          knightRider();
+          break;
+
+        case 9: // Colored knightrider
+          write("Running a pattern COLORED KNIGHTRIDER");
+          coloredKnightRider();
+          break;
+
+        case 10: // BPM
+          write("Running a pattern BPM");
+          bpm();
+          break;
+
+        case 11: // JUGGLE
+          write("Running a pattern JUGGLE");
+          juggle();
+          break;
+
+        case 12: // FADED
+          write("Running a pattern FADED");
+          faded();
+          break;
+
+        case 13: // BREATHING
+          write("Running a pattern BREATHING");
+          breathing(readColorFromDevice());
+          break;
+
         default:
           write("Unknown operation!");
         break;
-
       }
     }
 }
@@ -102,7 +152,6 @@ void loop(){
 /////////////// LED METHODS (PATTERNS) ///////////////
 void turnOnLeds(long color){
   if(currentPattern == TURN_OFF){
-    color  *= -1;
     for (int i = 0 ; i < NUM_LEDS ; i++) {
       leds[i].setRGB(getRed(color), getGreen(color), getBlue(color));
     }
@@ -113,6 +162,7 @@ void turnOnLeds(long color){
       delay(10);
     }
     currentPattern = ONE_COLOR;
+    currentColor = color;
     write("Leds on!");
   }
 }
@@ -139,20 +189,21 @@ void oneColor(long color) {
   }
   currentPattern = ONE_COLOR;
   currentColor = color;
-  write("One color was set!");
 }
 
 void setBrightness(){
-  BRIGHTNESS = (byte) strToLong(readStringFromSerial());
+  BRIGHTNESS = ((byte) strToLong(readStringFromSerial())) * 2.5;
   if(FastLED.getBrightness() > BRIGHTNESS){
-      for(int i = FastLED.getBrightness(); i <= BRIGHTNESS; i--){
+      for(int i = FastLED.getBrightness(); i >= BRIGHTNESS; i--){
         FastLED.setBrightness(i);
-        delay(10);
+        FastLED.show();
+        delay(25);
       }
   } else {
-      for(int i = FastLED.getBrightness(); i >= BRIGHTNESS; i++){
+      for(int i = FastLED.getBrightness(); i <= BRIGHTNESS; i++){
         FastLED.setBrightness(i);
-        delay(10);
+        FastLED.show();
+        delay(25);
       }
   }
   write("The brightness has been set!");
@@ -160,7 +211,6 @@ void setBrightness(){
 }
 
 void rainbow() {
-  BTSerial.println("Rainbow on!");
   currentPattern = RAINBOW;
   while (!BTSerial.available()) {
     showAndDelay();
@@ -169,7 +219,6 @@ void rainbow() {
 }
 
 void rainbowWithGlitter() {
-  BTSerial.println("Rainbow with Glitter on!");
   currentPattern = RAINBOW_GLITTER;
   while (!BTSerial.available()) {
     showAndDelay();
@@ -179,7 +228,6 @@ void rainbowWithGlitter() {
 }
 
 void confetti() {
-  BTSerial.println("Confetti on!");
   currentPattern = CONFETTI;
   while (!BTSerial.available()) {
     showAndDelay();
@@ -190,7 +238,6 @@ void confetti() {
 }
 
 void coloredKnightRider() {
-  BTSerial.println("Colored KnightRider on!");
   currentPattern = KNIGHRIDER_COLORED;
   while (!BTSerial.available()) {
     showAndDelay();
@@ -201,7 +248,6 @@ void coloredKnightRider() {
 }
 
 void knightRider() {
-  BTSerial.println("KnightRider on!");
   currentPattern = KNIGHRIDER;
   while (!BTSerial.available()) {
     showAndDelay();
@@ -212,7 +258,6 @@ void knightRider() {
 }
 
 void bpm() {
-  BTSerial.println("BPM on!");
   currentPattern = BPM;
   while (!BTSerial.available()) {
     showAndDelay();
@@ -226,7 +271,6 @@ void bpm() {
 }
 
 void juggle() {
-  BTSerial.println("Juggle on!");
   currentPattern = JUGGLE;
   while (!BTSerial.available()) {
     showAndDelay();
@@ -240,7 +284,6 @@ void juggle() {
 }
 
 void faded() {
-  BTSerial.println("Faded on!");
   currentPattern = FADED;
   while (!BTSerial.available()) {
     static uint8_t hue = 0;
@@ -260,26 +303,13 @@ void faded() {
   }
 }
 
-void addGlitter( fract8 chanceOfGlitter)
-{
-  if ( random8() < chanceOfGlitter) {
-    leds[ random16(NUM_LEDS) ] += CRGB::White;
-  }
-}
-
-void fadeall() {
-  for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i].nscale8(250);
-  }
-}
-
 void breathing(long color) {
   unsigned int r = getRed(color);
   unsigned int g = getGreen(color);
   unsigned int b = getBlue(color);
-  
-  BTSerial.println("Breathing on!");
+
   currentPattern = BREATHING;
+  currentColor = color;
 
   for (int i = 0; i <= NUM_LEDS / 2; i++) {
     leds[i].setRGB(r, g, b);
@@ -303,6 +333,22 @@ void breathing(long color) {
     }
   }
 }
+
+
+void addGlitter( fract8 chanceOfGlitter)
+{
+  if ( random8() < chanceOfGlitter) {
+    leds[ random16(NUM_LEDS) ] += CRGB::White;
+  }
+}
+
+void fadeall() {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i].nscale8(250);
+  }
+}
+
+
 /////////////// MY METHODS ///////////////
 
 // Methods read data from Serial when some information iscomming
@@ -316,8 +362,6 @@ String readStringFromSerial(){
 
 // Read and set data
 void initStartingData(){
-    FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-    
     while(!BTSerial.available()){}
     delay(100);
 
@@ -325,10 +369,10 @@ void initStartingData(){
     initResetPin();
 
     delay(100);
-    BRIGHTNESS = (byte) strToLong(readStringFromSerial());
+    BRIGHTNESS = ((byte) strToLong(readStringFromSerial())) * 2.5;
 
     delay(100);
-    currentColor = strToLong(readStringFromSerial());
+    currentColor = strToLong(readStringFromSerial()) * -1;
 
     delay(100);
     String turnOnLed = readStringFromSerial();
@@ -366,6 +410,10 @@ void showAndDelay() {
   }
 }
 //
+
+long readColorFromDevice(){
+  return strToLong(readStringFromSerial()) * -1;
+}
 
 void startPattern(){
  switch(currentPattern){
@@ -406,7 +454,7 @@ void startPattern(){
       break; 
 
     case BREATHING:
-      
+      breathing(currentColor);
       break;
  }
 }
