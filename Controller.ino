@@ -5,7 +5,7 @@
 #define LED_TYPE    WS2811
 #define COLOR_ORDER GRB
 #define FRAMES_PER_SECOND  120
-#define NUM_LEDS    30
+#define NUM_LEDS    180
 #define DATA_PIN    12
 #define FRAMES_PER_SECOND  120
 CRGB leds[NUM_LEDS];
@@ -30,6 +30,7 @@ typedef enum {
   JUGGLE,
   FADED,
   BREATHING,
+  COLORED_BREATHING
 } Pattern;
 
 
@@ -46,6 +47,7 @@ void setup(){
     turnOffLeds();
 
     Serial.begin(9600);
+
     while(!Serial){;}
     initStartingData();
 }
@@ -83,6 +85,7 @@ void loop(){
           break;
 
         case 2: // Reset
+          turnOffLeds();
           resetArduino();
           break;
 
@@ -319,12 +322,13 @@ void breathing(long color) {
   }
 
   while (!Serial.available()) {
-    for (int i = FastLED.getBrightness(); i < 256; i++) {
+    for (int i = FastLED.getBrightness(); i < BRIGHTNESS; i++) {
       FastLED.setBrightness(i);
       FastLED.show();
       if (Serial.available()) break;
       delay(10);
     }
+
     for (int i = FastLED.getBrightness(); i >= 0; i--) {
       FastLED.setBrightness(i);
       FastLED.show();
@@ -332,8 +336,8 @@ void breathing(long color) {
       delay(10);
     }
   }
+  FastLED.setBrightness(BRIGHTNESS);
 }
-
 
 void addGlitter( fract8 chanceOfGlitter)
 {
@@ -354,6 +358,7 @@ void fadeall() {
 // Read and set data
 void initStartingData(){
     while(!Serial.available()){}
+    write("Connected!");
     delay(100);
 
     RESET_PIN = (byte) strToLong(readStringFromSerial());
@@ -403,11 +408,10 @@ void showAndDelay() {
     gHue++;
   }
 }
-//
-
 
 // Methods read data from Serial when some information iscomming
 String readStringFromSerial(){
+  while(!Serial.available()){;}
     String data = "";
     delay(1000);
     if(Serial.available()){
@@ -415,7 +419,6 @@ String readStringFromSerial(){
     }
     return data;
 }
-
 
 long readColorFromDevice(){
   return strToLong(readStringFromSerial()) * -1;
